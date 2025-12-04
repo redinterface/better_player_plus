@@ -75,6 +75,7 @@ import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 import androidx.core.net.toUri
+import androidx.media3.common.text.CueGroup
 
 @UnstableApi
 internal class BetterPlayer(
@@ -103,6 +104,7 @@ internal class BetterPlayer(
     private val customDefaultLoadControl: CustomDefaultLoadControl =
         customDefaultLoadControl ?: CustomDefaultLoadControl()
     private var lastSendBufferedPosition = 0L
+    private var subtitleCueListener: Player.Listener? = null
 
     init {
         val loadBuilder = DefaultLoadControl.Builder()
@@ -750,9 +752,140 @@ internal class BetterPlayer(
         setAudioAttributes(exoPlayer, mixWithOthers)
     }
 
+    /**
+     * Get all available subtitle tracks from the current media.
+     */
+    fun getSubtitleTracks(): List<Map<String, Any?>> {
+        val tracks = mutableListOf<Map<String, Any?>>()
+        val player = exoPlayer ?: return tracks
+
+        try {
+            val currentTracks = player.currentTracks
+            val groups = currentTracks.groups
+
+            for (groupIndex in 0 until groups.size) {
+                val trackGroup = groups[groupIndex]
+                if (trackGroup.type == C.TRACK_TYPE_TEXT) {
+                    val mediaTrackGroup = trackGroup.mediaTrackGroup
+                    for (trackIndex in 0 until mediaTrackGroup.length) {
+                        val format = mediaTrackGroup.getFormat(trackIndex)
+                        val isSelected = trackGroup.isTrackSelected(trackIndex)
+
+                        val trackInfo = mapOf<String, Any?>(
+                            "id" to "${groupIndex}_${trackIndex}",
+                            "groupIndex" to groupIndex,
+                            "trackIndex" to trackIndex,
+                            "label" to format.label,
+                            "language" to format.language,
+                            "mimeType" to format.sampleMimeType,
+                            "isSelected" to isSelected
+                        )
+                        tracks.add(trackInfo)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting subtitle tracks: ${e.message}")
+        }
+
+        return tracks
+    }
+
+    /**
+     * Set the active subtitle track by group and track index.
+     */
+    fun setSubtitleTrack(groupIndex: Int, trackIndex: Int): Boolean {
+        val player = exoPlayer ?: return false
+
+        try {
+            val currentTracks = player.currentTracks
+            val groups = currentTracks.groups
+
+            if (groupIndex < 0 || groupIndex >= groups.size) {
+                return false
+            }
+
+            val trackGroup = groups[groupIndex]
+            if (trackGroup.type != C.TRACK_TYPE_TEXT) {
+                return false
+            }
+            if (trackIndex < 0 || trackIndex >= trackGroup.mediaTrackGroup.length) {
+                return false
+            }
+
+            val builder = trackSelector.parameters.buildUpon()
+            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            builder.addOverride(
+                TrackSelectionOverride(
+                    trackGroup.mediaTrackGroup,
+                    listOf(trackIndex)
+                )
+            )
+            trackSelector.setParameters(builder)
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting subtitle track: ${e.message}")
+            return false
+        }
+    }
+
+    /**
+     * Disable all subtitle tracks.
+     */
+    fun disableSubtitles(): Boolean {
+        val player = exoPlayer ?: return false
+
+        try {
+            val builder = trackSelector.parameters.buildUpon()
+            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            trackSelector.setParameters(builder)
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error disabling subtitles: ${e.message}")
+            return false
+        }
+    }
+
+    /**
+     * Start listening for subtitle cue events and send them via eventSink.
+     */
+    fun startSubtitleCueListener() {
+        val player = exoPlayer ?: return
+
+        // Remove existing listener if any
+        subtitleCueListener?.let { player.removeListener(it) }
+
+        subtitleCueListener = object : Player.Listener {
+            override fun onCues(cueGroup: CueGroup) {
+                val cueTexts = cueGroup.cues.mapNotNull { cue ->
+                    cue.text?.toString()
+                }
+
+                val event: MutableMap<String, Any> = HashMap()
+                event["event"] = "subtitleCue"
+                event["text"] = if (cueTexts.isNotEmpty()) cueTexts.joinToString("\n") else ""
+                event["presentationTimeUs"] = cueGroup.presentationTimeUs
+                eventSink.success(event)
+            }
+        }
+
+        player.addListener(subtitleCueListener!!)
+    }
+
+    /**
+     * Stop listening for subtitle cue events.
+     */
+    fun stopSubtitleCueListener() {
+        subtitleCueListener?.let { listener ->
+            exoPlayer?.removeListener(listener)
+        }
+        subtitleCueListener = null
+    }
+
     fun dispose() {
         disposeMediaSession()
         disposeRemoteNotifications()
+        stopSubtitleCueListener()
         if (isInitialized) {
             exoPlayer?.stop()
         }

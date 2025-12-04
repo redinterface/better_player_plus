@@ -248,6 +248,33 @@ class BetterPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
                 }
             }
 
+            GET_SUBTITLE_TRACKS_METHOD -> {
+                val tracks = player.getSubtitleTracks()
+                result.success(tracks)
+            }
+
+            SET_SUBTITLE_TRACK_METHOD -> {
+                val groupIndex = call.argument<Int>(GROUP_INDEX_PARAMETER) ?: -1
+                val trackIndex = call.argument<Int>(TRACK_INDEX_PARAMETER) ?: -1
+                val success = player.setSubtitleTrack(groupIndex, trackIndex)
+                result.success(success)
+            }
+
+            DISABLE_SUBTITLES_METHOD -> {
+                val success = player.disableSubtitles()
+                result.success(success)
+            }
+
+            START_SUBTITLE_LISTENER_METHOD -> {
+                player.startSubtitleCueListener()
+                result.success(null)
+            }
+
+            STOP_SUBTITLE_LISTENER_METHOD -> {
+                player.stopSubtitleCueListener()
+                result.success(null)
+            }
+
             DISPOSE_METHOD -> {
                 dispose(player, textureId)
                 result.success(null)
@@ -586,5 +613,12 @@ class BetterPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         private const val DISPOSE_METHOD = "dispose"
         private const val PRE_CACHE_METHOD = "preCache"
         private const val STOP_PRE_CACHE_METHOD = "stopPreCache"
+        private const val GET_SUBTITLE_TRACKS_METHOD = "getSubtitleTracks"
+        private const val SET_SUBTITLE_TRACK_METHOD = "setSubtitleTrack"
+        private const val DISABLE_SUBTITLES_METHOD = "disableSubtitles"
+        private const val START_SUBTITLE_LISTENER_METHOD = "startSubtitleListener"
+        private const val STOP_SUBTITLE_LISTENER_METHOD = "stopSubtitleListener"
+        private const val GROUP_INDEX_PARAMETER = "groupIndex"
+        private const val TRACK_INDEX_PARAMETER = "trackIndex"
     }
 }

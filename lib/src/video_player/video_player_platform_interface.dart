@@ -161,6 +161,31 @@ abstract class VideoPlayerPlatform {
     throw UnimplementedError('clearCache() has not been implemented.');
   }
 
+  /// Gets all available subtitle tracks from the video.
+  Future<List<Map<String, dynamic>>> getSubtitleTracks(int? textureId) {
+    throw UnimplementedError('getSubtitleTracks() has not been implemented.');
+  }
+
+  /// Sets the subtitle track by group and track index.
+  Future<bool> setSubtitleTrack(int? textureId, int groupIndex, int trackIndex) {
+    throw UnimplementedError('setSubtitleTrack() has not been implemented.');
+  }
+
+  /// Disables all subtitle tracks.
+  Future<bool> disableSubtitles(int? textureId) {
+    throw UnimplementedError('disableSubtitles() has not been implemented.');
+  }
+
+  /// Starts listening for subtitle cue events.
+  Future<void> startSubtitleListener(int? textureId) {
+    throw UnimplementedError('startSubtitleListener() has not been implemented.');
+  }
+
+  /// Stops listening for subtitle cue events.
+  Future<void> stopSubtitleListener(int? textureId) {
+    throw UnimplementedError('stopSubtitleListener() has not been implemented.');
+  }
+
   /// Returns a widget displaying the video with a given textureID.
   Widget buildView(int? textureId) {
     throw UnimplementedError('buildView() has not been implemented.');
@@ -373,6 +398,7 @@ class VideoEvent {
     this.size,
     this.buffered,
     this.position,
+    this.subtitleText,
   });
 
   /// The type of the event.
@@ -401,6 +427,11 @@ class VideoEvent {
   ///Seek position
   final Duration? position;
 
+  /// Subtitle text for subtitle cue events.
+  ///
+  /// Only used if [eventType] is [VideoEventType.subtitleCue].
+  final String? subtitleText;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -410,10 +441,11 @@ class VideoEvent {
           eventType == other.eventType &&
           duration == other.duration &&
           size == other.size &&
-          listEquals(buffered, other.buffered);
+          listEquals(buffered, other.buffered) &&
+          subtitleText == other.subtitleText;
 
   @override
-  int get hashCode => eventType.hashCode ^ duration.hashCode ^ size.hashCode ^ buffered.hashCode;
+  int get hashCode => eventType.hashCode ^ duration.hashCode ^ size.hashCode ^ buffered.hashCode ^ subtitleText.hashCode;
 }
 
 /// Type of the event.
@@ -450,6 +482,9 @@ enum VideoEventType {
 
   /// Picture in picture mode has been dismissed
   pipStop,
+
+  /// A subtitle cue was received
+  subtitleCue,
 
   /// An unknown event has been received.
   unknown,

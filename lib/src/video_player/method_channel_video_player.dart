@@ -206,6 +206,48 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
       _channel.invokeMethod<void>('stopPreCache', <String, dynamic>{'url': url, 'cacheKey': cacheKey});
 
   @override
+  Future<List<Map<String, dynamic>>> getSubtitleTracks(int? textureId) async {
+    final List<dynamic>? result = await _channel.invokeMethod<List<dynamic>>(
+      'getSubtitleTracks',
+      <String, dynamic>{'textureId': textureId},
+    );
+    if (result == null) {
+      return [];
+    }
+    return result.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  @override
+  Future<bool> setSubtitleTrack(int? textureId, int groupIndex, int trackIndex) async {
+    final bool? result = await _channel.invokeMethod<bool>(
+      'setSubtitleTrack',
+      <String, dynamic>{
+        'textureId': textureId,
+        'groupIndex': groupIndex,
+        'trackIndex': trackIndex,
+      },
+    );
+    return result ?? false;
+  }
+
+  @override
+  Future<bool> disableSubtitles(int? textureId) async {
+    final bool? result = await _channel.invokeMethod<bool>(
+      'disableSubtitles',
+      <String, dynamic>{'textureId': textureId},
+    );
+    return result ?? false;
+  }
+
+  @override
+  Future<void> startSubtitleListener(int? textureId) =>
+      _channel.invokeMethod<void>('startSubtitleListener', <String, dynamic>{'textureId': textureId});
+
+  @override
+  Future<void> stopSubtitleListener(int? textureId) =>
+      _channel.invokeMethod<void>('stopSubtitleListener', <String, dynamic>{'textureId': textureId});
+
+  @override
   Stream<VideoEvent> videoEventsFor(int? textureId) =>
       _eventChannelFor(textureId).receiveBroadcastStream().map((event) {
         late Map<dynamic, dynamic> map;
@@ -273,6 +315,13 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
 
           case 'pipStop':
             return VideoEvent(eventType: VideoEventType.pipStop, key: key);
+
+          case 'subtitleCue':
+            return VideoEvent(
+              eventType: VideoEventType.subtitleCue,
+              key: key,
+              subtitleText: map['text'] as String?,
+            );
 
           default:
             return VideoEvent(eventType: VideoEventType.unknown, key: key);

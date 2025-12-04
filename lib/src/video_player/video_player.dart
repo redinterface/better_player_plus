@@ -231,6 +231,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           value = value.copyWith(isPip: true);
         case VideoEventType.pipStop:
           value = value.copyWith(isPip: false);
+        case VideoEventType.subtitleCue:
+          // Subtitle cue events are forwarded through videoEventStreamController
+          // Consumers can listen to this stream to receive subtitle text
+          break;
         case VideoEventType.unknown:
           break;
       }
@@ -587,6 +591,58 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   void setMixWithOthers(bool mixWithOthers) {
     _videoPlayerPlatform.setMixWithOthers(_textureId, mixWithOthers);
+  }
+
+  /// Gets all available subtitle tracks from the current media.
+  /// Returns a list of track info maps with keys like:
+  /// - id: unique track identifier (e.g., "0_0")
+  /// - groupIndex: track group index
+  /// - trackIndex: track index within group
+  /// - label: track label (may be null)
+  /// - language: track language code (may be null)
+  /// - mimeType: subtitle MIME type (may be null)
+  /// - isSelected: whether this track is currently selected
+  Future<List<Map<String, dynamic>>> getSubtitleTracks() async {
+    if (!_created || _isDisposed) {
+      return [];
+    }
+    return _videoPlayerPlatform.getSubtitleTracks(_textureId);
+  }
+
+  /// Sets the active subtitle track by group and track index.
+  /// Returns true if successful, false otherwise.
+  Future<bool> setSubtitleTrack(int groupIndex, int trackIndex) async {
+    if (!_created || _isDisposed) {
+      return false;
+    }
+    return _videoPlayerPlatform.setSubtitleTrack(_textureId, groupIndex, trackIndex);
+  }
+
+  /// Disables all subtitle tracks.
+  /// Returns true if successful, false otherwise.
+  Future<bool> disableSubtitles() async {
+    if (!_created || _isDisposed) {
+      return false;
+    }
+    return _videoPlayerPlatform.disableSubtitles(_textureId);
+  }
+
+  /// Starts listening for subtitle cue events.
+  /// Subtitle cues will be delivered as VideoEventType.subtitleCue events
+  /// through the videoEventStreamController.
+  Future<void> startSubtitleListener() async {
+    if (!_created || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.startSubtitleListener(_textureId);
+  }
+
+  /// Stops listening for subtitle cue events.
+  Future<void> stopSubtitleListener() async {
+    if (!_created || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.stopSubtitleListener(_textureId);
   }
 
   static Future<void> clearCache() async => _videoPlayerPlatform.clearCache();
