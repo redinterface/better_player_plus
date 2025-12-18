@@ -145,7 +145,8 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
     final int milliseconds =
         await _channel.invokeMethod<int>('absolutePosition', <String, dynamic>{'textureId': textureId}) ?? 0;
 
-    if (milliseconds <= 0) {
+    const int maxValidMillis = 8640000000000000;
+    if (milliseconds <= 0 || milliseconds > maxValidMillis) {
       return null;
     }
 
